@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,20 +13,12 @@ import {
 } from '@/components/ui/table';
 import type { Launch } from '@/types';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { launchService } from '@/services';
 
 export default function Launches() {
-  const [launches, setLaunches] = useState<Launch[]>([
-    {
-      id: '1',
-      name: 'Starlink Mission',
-      date: '2025-10-23T10:30:00Z',
-      rocket: 'Falcon 9',
-      launchBase: 'Kennedy Space Center',
-      status: 'scheduled',
-      description: 'Deployment of 60 Starlink satellites to low Earth orbit.',
-    },
-  ]);
-  
+  const [launches, setLaunches] = useState<Launch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Launch>>({
@@ -38,20 +30,43 @@ export default function Launches() {
     description: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchLaunches();
+  }, []);
+
+  const fetchLaunches = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await launchService.getAll();
+      setLaunches(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch launches');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (editingId) {
-      setLaunches(launches.map(l => l.id === editingId ? { ...formData, id: editingId } as Launch : l));
-    } else {
-      const newLaunch: Launch = {
-        ...formData,
-        id: Date.now().toString(),
-      } as Launch;
-      setLaunches([...launches, newLaunch]);
+    try {
+      setError(null);
+      if (editingId) {
+        await launchService.update(editingId, formData);
+      } else {
+        // Validate required fields before creating
+        if (!formData.name || !formData.date || !formData.rocket || !formData.launchBase) {
+          setError('Please fill in all required fields');
+          return;
+        }
+        await launchService.create(formData as Omit<Launch, 'id'>);
+      }
+      await fetchLaunches();
+      resetForm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save launch');
     }
-    
-    resetForm();
   };
 
   const handleEdit = (launch: Launch) => {
@@ -60,9 +75,15 @@ export default function Launches() {
     setIsEditing(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this launch?')) {
-      setLaunches(launches.filter(l => l.id !== id));
+      try {
+        setError(null);
+        await launchService.delete(id);
+        await fetchLaunches();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to delete launch');
+      }
     }
   };
 
@@ -107,6 +128,12 @@ export default function Launches() {
           Add Launch
         </Button>
       </div>
+
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-md">
+          {error}
+        </div>
+      )}
 
       {isEditing && (
         <Card className="mb-8">
@@ -194,49 +221,55 @@ export default function Launches() {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Rocket</TableHead>
-                <TableHead>Launch Base</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {launches.map((launch) => (
-                <TableRow key={launch.id}>
-                  <TableCell className="font-medium">{launch.name}</TableCell>
-                  <TableCell>{formatDate(launch.date)}</TableCell>
-                  <TableCell>{launch.rocket}</TableCell>
-                  <TableCell>{launch.launchBase}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(launch.status)}`}>
-                      {launch.status}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(launch)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(launch.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+          {loading ? (
+            <div className="p-8 text-center">Loading launches...</div>
+          ) : launches.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground">No launches found</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Rocket</TableHead>
+                  <TableHead>Launch Base</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {launches.map((launch) => (
+                  <TableRow key={launch.id}>
+                    <TableCell className="font-medium">{launch.name}</TableCell>
+                    <TableCell>{formatDate(launch.date)}</TableCell>
+                    <TableCell>{launch.rocket}</TableCell>
+                    <TableCell>{launch.launchBase}</TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(launch.status)}`}>
+                        {launch.status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(launch)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(launch.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
