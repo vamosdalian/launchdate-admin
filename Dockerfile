@@ -9,6 +9,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Configure npm to handle SSL issues in build environments
+# Note: This is required for environments with corporate proxies/SSL inspection
+# In production GitHub Actions, consider using a custom CA bundle instead
 RUN npm config set strict-ssl false
 
 # Install dependencies
