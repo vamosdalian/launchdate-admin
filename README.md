@@ -1,73 +1,121 @@
-# React + TypeScript + Vite
+# LaunchDate Admin Panel
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Admin panel for managing rocket launch data for launch-date.com. Built with React, TypeScript, and shadcn/ui.
 
-Currently, two official plugins are available:
+## 🚀 Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Dashboard** - Overview with statistics for all data entities
+- **Rockets Management** - CRUD operations for rocket data
+- **Launches Management** - Manage scheduled and past launches
+- **News Management** - Create and edit news articles with markdown support
+- **Launch Bases Management** - Manage launch facilities and locations
+- **Companies Management** - Track space companies and organizations
 
-## React Compiler
+## 🛠️ Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **React 19** - Modern React with hooks
+- **TypeScript** - Type-safe development
+- **Vite** - Fast build tool and dev server
+- **Tailwind CSS** - Utility-first CSS framework
+- **shadcn/ui** - High-quality React components
+- **React Router** - Client-side routing
+- **Lucide React** - Beautiful icons
 
-## Expanding the ESLint configuration
+## 📦 Installation
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+```bash
+# Install dependencies
+npm install
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+# Start development server
+npm run dev
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+# Build for production
+npm run build
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Preview production build
+npm run preview
+
+# Run linter
+npm run lint
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 🏗️ Project Structure
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+src/
+├── components/
+│   ├── ui/              # shadcn/ui components
+│   └── Sidebar.tsx      # Navigation sidebar
+├── pages/               # Page components with CRUD logic
+│   ├── Dashboard.tsx
+│   ├── Rockets.tsx
+│   ├── Launches.tsx
+│   ├── News.tsx
+│   ├── LaunchBases.tsx
+│   └── Companies.tsx
+├── types/
+│   └── index.ts         # TypeScript type definitions
+├── lib/
+│   └── utils.ts         # Utility functions
+├── App.tsx              # Main app component with routing
+└── main.tsx             # Application entry point
+```
+
+## 📊 Data Entities
+
+### Rockets
+- Name, description
+- Physical specifications (height, diameter, mass)
+- Company, active status
+- Images
+
+### Launches
+- Name, date/time
+- Associated rocket and launch base
+- Status (scheduled, successful, failed, cancelled)
+- Description
+
+### News
+- Title, summary, full content (markdown)
+- Publication date
+- External URL and images
+
+### Launch Bases
+- Name, location, country
+- GPS coordinates (latitude, longitude)
+- Description and images
+
+### Companies
+- Name, founder, founding year
+- Headquarters location
+- Employee count, website
+- Images
+
+## 🎨 UI Components
+
+Built with shadcn/ui component library:
+- Button
+- Card
+- Input
+- Textarea
+- Table
+- Custom Sidebar navigation
+
+## 🔧 Development
+
+The application uses in-memory state management. To connect to the backend:
+
+1. Create an API service layer in `src/services/`
+2. Replace state management with API calls
+3. Add error handling and loading states
+4. Implement data caching if needed
+
+## 📝 Related Projects
+
+- **Frontend**: [launchdate-web](https://github.com/vamosdalian/launchdate-web)
+- **Backend**: [launchdate-backend](https://github.com/vamosdalian/launchdate-backend)
+
+## 📄 License
+
+This project is part of the LaunchDate platform.
