@@ -137,7 +137,7 @@ export default function Rockets() {
                   <Input
                     type="number"
                     value={formData.height}
-                    onChange={(e) => setFormData({ ...formData, height: parseFloat(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, height: parseFloat(e.target.value) || 0 })}
                     required
                   />
                 </div>
@@ -146,7 +146,7 @@ export default function Rockets() {
                   <Input
                     type="number"
                     value={formData.diameter}
-                    onChange={(e) => setFormData({ ...formData, diameter: parseFloat(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, diameter: parseFloat(e.target.value) || 0 })}
                     required
                   />
                 </div>
@@ -155,7 +155,7 @@ export default function Rockets() {
                   <Input
                     type="number"
                     value={formData.mass}
-                    onChange={(e) => setFormData({ ...formData, mass: parseFloat(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, mass: parseFloat(e.target.value) || 0 })}
                     required
                   />
                 </div>

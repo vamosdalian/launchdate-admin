@@ -137,7 +137,7 @@ export default function Companies() {
                   <Input
                     type="number"
                     value={formData.founded}
-                    onChange={(e) => setFormData({ ...formData, founded: parseInt(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, founded: parseInt(e.target.value) || 0 })}
                     required
                   />
                 </div>
@@ -146,7 +146,7 @@ export default function Companies() {
                   <Input
                     type="number"
                     value={formData.employees}
-                    onChange={(e) => setFormData({ ...formData, employees: parseInt(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, employees: parseInt(e.target.value) || 0 })}
                     required
                   />
                 </div>

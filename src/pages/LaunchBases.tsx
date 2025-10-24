@@ -144,7 +144,7 @@ export default function LaunchBases() {
                     type="number"
                     step="any"
                     value={formData.latitude}
-                    onChange={(e) => setFormData({ ...formData, latitude: parseFloat(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, latitude: parseFloat(e.target.value) || 0 })}
                     required
                   />
                 </div>
@@ -154,7 +154,7 @@ export default function LaunchBases() {
                     type="number"
                     step="any"
                     value={formData.longitude}
-                    onChange={(e) => setFormData({ ...formData, longitude: parseFloat(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, longitude: parseFloat(e.target.value) || 0 })}
                     required
                   />
                 </div>
