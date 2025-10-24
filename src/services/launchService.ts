@@ -21,4 +21,8 @@ export const launchService = {
   delete: async (id: string): Promise<void> => {
     return apiClient.delete<void>(`/api/launches/${id}`);
   },
+
+  sync: async (): Promise<{ message: string; count: number }> => {
+    return apiClient.post<{ message: string; count: number }>('/api/v1/rocket-launches/sync');
+  },
 };

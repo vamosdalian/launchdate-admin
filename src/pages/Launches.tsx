@@ -12,13 +12,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { Launch } from '@/types';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, RefreshCw } from 'lucide-react';
 import { launchService } from '@/services';
 
 export default function Launches() {
   const [launches, setLaunches] = useState<Launch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Launch>>({
@@ -44,6 +46,21 @@ export default function Launches() {
       setError(err instanceof Error ? err.message : 'Failed to fetch launches');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSync = async () => {
+    try {
+      setSyncing(true);
+      setError(null);
+      setSuccessMessage(null);
+      const result = await launchService.sync();
+      setSuccessMessage(`Successfully synced ${result.count} launches`);
+      await fetchLaunches();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to sync launches');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -123,15 +140,27 @@ export default function Launches() {
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Launches</h1>
-        <Button onClick={() => setIsEditing(!isEditing)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Launch
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleSync} disabled={syncing} variant="outline">
+            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing...' : 'Sync'}
+          </Button>
+          <Button onClick={() => setIsEditing(!isEditing)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Launch
+          </Button>
+        </div>
       </div>
 
       {error && (
         <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-md">
           {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="mb-4 p-4 bg-green-100 text-green-800 rounded-md">
+          {successMessage}
         </div>
       )}
 
