@@ -55,6 +55,11 @@ export default function Launches() {
       if (editingId) {
         await launchService.update(editingId, formData);
       } else {
+        // Validate required fields before creating
+        if (!formData.name || !formData.date || !formData.rocket || !formData.launchBase) {
+          setError('Please fill in all required fields');
+          return;
+        }
         await launchService.create(formData as Omit<Launch, 'id'>);
       }
       await fetchLaunches();

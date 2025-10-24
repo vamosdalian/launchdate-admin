@@ -57,6 +57,11 @@ export default function Companies() {
       if (editingId) {
         await companyService.update(editingId, formData);
       } else {
+        // Validate required fields before creating
+        if (!formData.name || !formData.founder || !formData.headquarters) {
+          setError('Please fill in all required fields');
+          return;
+        }
         await companyService.create(formData as Omit<Company, 'id'>);
       }
       await fetchCompanies();

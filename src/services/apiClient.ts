@@ -37,14 +37,23 @@ class ApiClient {
         throw error;
       }
 
+      // Handle empty responses (e.g., 204 No Content for DELETE)
+      const contentType = response.headers.get('content-type');
+      if (response.status === 204 || !contentType?.includes('application/json')) {
+        return {} as T;
+      }
+
       return await response.json();
     } catch (error) {
-      if ((error as ApiError).status) {
+      // Re-throw ApiError instances
+      if (error && typeof error === 'object' && 'status' in error) {
         throw error;
       }
-      throw {
+      // Wrap other errors in ApiError format
+      const apiError: ApiError = {
         message: error instanceof Error ? error.message : 'Network error',
-      } as ApiError;
+      };
+      throw apiError;
     }
   }
 

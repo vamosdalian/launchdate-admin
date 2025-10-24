@@ -55,6 +55,11 @@ export default function News() {
       if (editingId) {
         await newsService.update(editingId, formData);
       } else {
+        // Validate required fields before creating
+        if (!formData.title || !formData.summary || !formData.date || !formData.url) {
+          setError('Please fill in all required fields');
+          return;
+        }
         await newsService.create(formData as Omit<NewsType, 'id'>);
       }
       await fetchNews();

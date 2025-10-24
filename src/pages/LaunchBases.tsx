@@ -56,6 +56,11 @@ export default function LaunchBases() {
       if (editingId) {
         await launchBaseService.update(editingId, formData);
       } else {
+        // Validate required fields before creating
+        if (!formData.name || !formData.location || !formData.country) {
+          setError('Please fill in all required fields');
+          return;
+        }
         await launchBaseService.create(formData as Omit<LaunchBase, 'id'>);
       }
       await fetchBases();

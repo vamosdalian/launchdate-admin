@@ -57,6 +57,11 @@ export default function Rockets() {
       if (editingId) {
         await rocketService.update(editingId, formData);
       } else {
+        // Validate required fields before creating
+        if (!formData.name || !formData.company || !formData.description) {
+          setError('Please fill in all required fields');
+          return;
+        }
         await rocketService.create(formData as Omit<Rocket, 'id'>);
       }
       await fetchRockets();
