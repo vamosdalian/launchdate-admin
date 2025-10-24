@@ -27,6 +27,12 @@ Admin panel for managing rocket launch data for launch-date.com. Built with Reac
 # Install dependencies
 npm install
 
+# Copy environment variables template
+cp .env.example .env
+
+# Configure backend URL in .env file
+# VITE_API_BASE_URL=http://localhost:8080
+
 # Start development server
 npm run dev
 
@@ -39,6 +45,16 @@ npm run preview
 # Run linter
 npm run lint
 ```
+
+## 🔧 Environment Configuration
+
+Create a `.env` file in the root directory with the following variables:
+
+```env
+VITE_API_BASE_URL=http://localhost:8080
+```
+
+Replace `http://localhost:8080` with your backend API URL. For production, this should point to your production backend server.
 
 ## 🏗️ Project Structure
 
@@ -54,6 +70,15 @@ src/
 │   ├── News.tsx
 │   ├── LaunchBases.tsx
 │   └── Companies.tsx
+├── services/            # API service layer
+│   ├── apiClient.ts     # HTTP client
+│   ├── rocketService.ts
+│   ├── launchService.ts
+│   ├── newsService.ts
+│   ├── launchBaseService.ts
+│   ├── companyService.ts
+│   ├── statsService.ts
+│   └── index.ts
 ├── types/
 │   └── index.ts         # TypeScript type definitions
 ├── lib/
@@ -104,12 +129,23 @@ Built with shadcn/ui component library:
 
 ## 🔧 Development
 
-The application uses in-memory state management. To connect to the backend:
+The application uses a service layer to communicate with the backend API. 
 
-1. Create an API service layer in `src/services/`
-2. Replace state management with API calls
-3. Add error handling and loading states
-4. Implement data caching if needed
+### API Integration
+
+All API calls are handled through service modules in `src/services/`:
+- `rocketService.ts` - Rocket CRUD operations
+- `launchService.ts` - Launch CRUD operations
+- `newsService.ts` - News CRUD operations
+- `launchBaseService.ts` - Launch base CRUD operations
+- `companyService.ts` - Company CRUD operations
+- `statsService.ts` - Dashboard statistics
+
+The backend API URL is configured via the `VITE_API_BASE_URL` environment variable.
+
+### Backend Requirements
+
+See [docs/API_REQUIREMENTS.md](docs/API_REQUIREMENTS.md) for detailed API endpoint specifications that the backend should implement.
 
 ## 📝 Related Projects
 

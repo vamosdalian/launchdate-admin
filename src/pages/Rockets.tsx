@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,22 +13,12 @@ import {
 } from '@/components/ui/table';
 import type { Rocket } from '@/types';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { rocketService } from '@/services';
 
 export default function Rockets() {
-  const [rockets, setRockets] = useState<Rocket[]>([
-    {
-      id: '1',
-      name: 'Falcon 9',
-      description: 'A reusable, two-stage rocket designed and manufactured by SpaceX.',
-      height: 70,
-      diameter: 3.7,
-      mass: 549054,
-      company: 'SpaceX',
-      imageUrl: 'https://via.placeholder.com/400x600/1e3a8a/ffffff?text=Falcon+9',
-      active: true,
-    },
-  ]);
-  
+  const [rockets, setRockets] = useState<Rocket[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Rocket>>({
@@ -42,20 +32,38 @@ export default function Rockets() {
     active: true,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchRockets();
+  }, []);
+
+  const fetchRockets = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await rocketService.getAll();
+      setRockets(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch rockets');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (editingId) {
-      setRockets(rockets.map(r => r.id === editingId ? { ...formData, id: editingId } as Rocket : r));
-    } else {
-      const newRocket: Rocket = {
-        ...formData,
-        id: Date.now().toString(),
-      } as Rocket;
-      setRockets([...rockets, newRocket]);
+    try {
+      setError(null);
+      if (editingId) {
+        await rocketService.update(editingId, formData);
+      } else {
+        await rocketService.create(formData as Omit<Rocket, 'id'>);
+      }
+      await fetchRockets();
+      resetForm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save rocket');
     }
-    
-    resetForm();
   };
 
   const handleEdit = (rocket: Rocket) => {
@@ -64,9 +72,15 @@ export default function Rockets() {
     setIsEditing(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this rocket?')) {
-      setRockets(rockets.filter(r => r.id !== id));
+      try {
+        setError(null);
+        await rocketService.delete(id);
+        await fetchRockets();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to delete rocket');
+      }
     }
   };
 
@@ -94,6 +108,12 @@ export default function Rockets() {
           Add Rocket
         </Button>
       </div>
+
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-md">
+          {error}
+        </div>
+      )}
 
       {isEditing && (
         <Card className="mb-8">
@@ -196,49 +216,55 @@ export default function Rockets() {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Company</TableHead>
-                <TableHead>Height (m)</TableHead>
-                <TableHead>Diameter (m)</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rockets.map((rocket) => (
-                <TableRow key={rocket.id}>
-                  <TableCell className="font-medium">{rocket.name}</TableCell>
-                  <TableCell>{rocket.company}</TableCell>
-                  <TableCell>{rocket.height}</TableCell>
-                  <TableCell>{rocket.diameter}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs ${rocket.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                      {rocket.active ? 'Active' : 'Inactive'}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(rocket)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(rocket.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+          {loading ? (
+            <div className="p-8 text-center">Loading rockets...</div>
+          ) : rockets.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground">No rockets found</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Height (m)</TableHead>
+                  <TableHead>Diameter (m)</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {rockets.map((rocket) => (
+                  <TableRow key={rocket.id}>
+                    <TableCell className="font-medium">{rocket.name}</TableCell>
+                    <TableCell>{rocket.company}</TableCell>
+                    <TableCell>{rocket.height}</TableCell>
+                    <TableCell>{rocket.diameter}</TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded-full text-xs ${rocket.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                        {rocket.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(rocket)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(rocket.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

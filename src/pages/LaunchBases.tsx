@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,21 +13,12 @@ import {
 } from '@/components/ui/table';
 import type { LaunchBase } from '@/types';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { launchBaseService } from '@/services';
 
 export default function LaunchBases() {
-  const [bases, setBases] = useState<LaunchBase[]>([
-    {
-      id: '1',
-      name: 'Kennedy Space Center',
-      location: 'Merritt Island, Florida',
-      country: 'United States',
-      description: "NASA's primary launch center for human spaceflight.",
-      imageUrl: 'https://via.placeholder.com/800x600/1e3a8a/ffffff?text=Kennedy+Space+Center',
-      latitude: 28.5729,
-      longitude: -80.6490,
-    },
-  ]);
-  
+  const [bases, setBases] = useState<LaunchBase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<LaunchBase>>({
@@ -40,20 +31,38 @@ export default function LaunchBases() {
     longitude: 0,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchBases();
+  }, []);
+
+  const fetchBases = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await launchBaseService.getAll();
+      setBases(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch launch bases');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (editingId) {
-      setBases(bases.map(b => b.id === editingId ? { ...formData, id: editingId } as LaunchBase : b));
-    } else {
-      const newBase: LaunchBase = {
-        ...formData,
-        id: Date.now().toString(),
-      } as LaunchBase;
-      setBases([...bases, newBase]);
+    try {
+      setError(null);
+      if (editingId) {
+        await launchBaseService.update(editingId, formData);
+      } else {
+        await launchBaseService.create(formData as Omit<LaunchBase, 'id'>);
+      }
+      await fetchBases();
+      resetForm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save launch base');
     }
-    
-    resetForm();
   };
 
   const handleEdit = (base: LaunchBase) => {
@@ -62,9 +71,15 @@ export default function LaunchBases() {
     setIsEditing(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this launch base?')) {
-      setBases(bases.filter(b => b.id !== id));
+      try {
+        setError(null);
+        await launchBaseService.delete(id);
+        await fetchBases();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to delete launch base');
+      }
     }
   };
 
@@ -91,6 +106,12 @@ export default function LaunchBases() {
           Add Launch Base
         </Button>
       </div>
+
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-md">
+          {error}
+        </div>
+      )}
 
       {isEditing && (
         <Card className="mb-8">
@@ -184,43 +205,49 @@ export default function LaunchBases() {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Country</TableHead>
-                <TableHead>Coordinates</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {bases.map((base) => (
-                <TableRow key={base.id}>
-                  <TableCell className="font-medium">{base.name}</TableCell>
-                  <TableCell>{base.location}</TableCell>
-                  <TableCell>{base.country}</TableCell>
-                  <TableCell>{base.latitude.toFixed(4)}, {base.longitude.toFixed(4)}</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(base)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(base.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+          {loading ? (
+            <div className="p-8 text-center">Loading launch bases...</div>
+          ) : bases.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground">No launch bases found</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Country</TableHead>
+                  <TableHead>Coordinates</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {bases.map((base) => (
+                  <TableRow key={base.id}>
+                    <TableCell className="font-medium">{base.name}</TableCell>
+                    <TableCell>{base.location}</TableCell>
+                    <TableCell>{base.country}</TableCell>
+                    <TableCell>{base.latitude.toFixed(4)}, {base.longitude.toFixed(4)}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(base)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(base.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

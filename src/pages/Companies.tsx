@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,22 +13,12 @@ import {
 } from '@/components/ui/table';
 import type { Company } from '@/types';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { companyService } from '@/services';
 
 export default function Companies() {
-  const [companies, setCompanies] = useState<Company[]>([
-    {
-      id: '1',
-      name: 'SpaceX',
-      description: 'Space Exploration Technologies Corp. is an American aerospace manufacturer and space transportation company.',
-      founded: 2002,
-      founder: 'Elon Musk',
-      headquarters: 'Hawthorne, California, USA',
-      employees: 13000,
-      website: 'https://www.spacex.com',
-      imageUrl: 'https://via.placeholder.com/400x400/1e3a8a/ffffff?text=SpaceX',
-    },
-  ]);
-  
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Company>>({
@@ -42,20 +32,38 @@ export default function Companies() {
     imageUrl: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+
+  const fetchCompanies = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await companyService.getAll();
+      setCompanies(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch companies');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (editingId) {
-      setCompanies(companies.map(c => c.id === editingId ? { ...formData, id: editingId } as Company : c));
-    } else {
-      const newCompany: Company = {
-        ...formData,
-        id: Date.now().toString(),
-      } as Company;
-      setCompanies([...companies, newCompany]);
+    try {
+      setError(null);
+      if (editingId) {
+        await companyService.update(editingId, formData);
+      } else {
+        await companyService.create(formData as Omit<Company, 'id'>);
+      }
+      await fetchCompanies();
+      resetForm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save company');
     }
-    
-    resetForm();
   };
 
   const handleEdit = (company: Company) => {
@@ -64,9 +72,15 @@ export default function Companies() {
     setIsEditing(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this company?')) {
-      setCompanies(companies.filter(c => c.id !== id));
+      try {
+        setError(null);
+        await companyService.delete(id);
+        await fetchCompanies();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to delete company');
+      }
     }
   };
 
@@ -94,6 +108,12 @@ export default function Companies() {
           Add Company
         </Button>
       </div>
+
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-md">
+          {error}
+        </div>
+      )}
 
       {isEditing && (
         <Card className="mb-8">
@@ -194,45 +214,51 @@ export default function Companies() {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Founder</TableHead>
-                <TableHead>Founded</TableHead>
-                <TableHead>Headquarters</TableHead>
-                <TableHead>Employees</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {companies.map((company) => (
-                <TableRow key={company.id}>
-                  <TableCell className="font-medium">{company.name}</TableCell>
-                  <TableCell>{company.founder}</TableCell>
-                  <TableCell>{company.founded}</TableCell>
-                  <TableCell>{company.headquarters}</TableCell>
-                  <TableCell>{company.employees.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(company)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(company.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+          {loading ? (
+            <div className="p-8 text-center">Loading companies...</div>
+          ) : companies.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground">No companies found</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Founder</TableHead>
+                  <TableHead>Founded</TableHead>
+                  <TableHead>Headquarters</TableHead>
+                  <TableHead>Employees</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {companies.map((company) => (
+                  <TableRow key={company.id}>
+                    <TableCell className="font-medium">{company.name}</TableCell>
+                    <TableCell>{company.founder}</TableCell>
+                    <TableCell>{company.founded}</TableCell>
+                    <TableCell>{company.headquarters}</TableCell>
+                    <TableCell>{company.employees.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(company)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(company.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

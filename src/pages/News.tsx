@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,20 +13,12 @@ import {
 } from '@/components/ui/table';
 import type { News as NewsType } from '@/types';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { newsService } from '@/services';
 
 export default function News() {
-  const [news, setNews] = useState<NewsType[]>([
-    {
-      id: '1',
-      title: 'SpaceX Completes 200th Successful Landing',
-      summary: 'SpaceX has achieved another milestone with its 200th successful booster landing.',
-      content: '# SpaceX Achieves Historic 200th Successful Landing\n\nSpaceX has reached a remarkable milestone...',
-      date: '2025-10-20T12:00:00Z',
-      url: 'https://www.spacex.com',
-      imageUrl: 'https://via.placeholder.com/600x400/1e3a8a/ffffff?text=SpaceX+Landing',
-    },
-  ]);
-  
+  const [news, setNews] = useState<NewsType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<NewsType>>({
@@ -38,20 +30,38 @@ export default function News() {
     imageUrl: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchNews();
+  }, []);
+
+  const fetchNews = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await newsService.getAll();
+      setNews(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch news');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (editingId) {
-      setNews(news.map(n => n.id === editingId ? { ...formData, id: editingId } as NewsType : n));
-    } else {
-      const newNews: NewsType = {
-        ...formData,
-        id: Date.now().toString(),
-      } as NewsType;
-      setNews([...news, newNews]);
+    try {
+      setError(null);
+      if (editingId) {
+        await newsService.update(editingId, formData);
+      } else {
+        await newsService.create(formData as Omit<NewsType, 'id'>);
+      }
+      await fetchNews();
+      resetForm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save news');
     }
-    
-    resetForm();
   };
 
   const handleEdit = (newsItem: NewsType) => {
@@ -60,9 +70,15 @@ export default function News() {
     setIsEditing(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this news article?')) {
-      setNews(news.filter(n => n.id !== id));
+      try {
+        setError(null);
+        await newsService.delete(id);
+        await fetchNews();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to delete news');
+      }
     }
   };
 
@@ -92,6 +108,12 @@ export default function News() {
           Add News
         </Button>
       </div>
+
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-md">
+          {error}
+        </div>
+      )}
 
       {isEditing && (
         <Card className="mb-8">
@@ -173,45 +195,51 @@ export default function News() {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>URL</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {news.map((newsItem) => (
-                <TableRow key={newsItem.id}>
-                  <TableCell className="font-medium">{newsItem.title}</TableCell>
-                  <TableCell>{formatDate(newsItem.date)}</TableCell>
-                  <TableCell>
-                    <a href={newsItem.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                      Link
-                    </a>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(newsItem)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(newsItem.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+          {loading ? (
+            <div className="p-8 text-center">Loading news...</div>
+          ) : news.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground">No news found</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>URL</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {news.map((newsItem) => (
+                  <TableRow key={newsItem.id}>
+                    <TableCell className="font-medium">{newsItem.title}</TableCell>
+                    <TableCell>{formatDate(newsItem.date)}</TableCell>
+                    <TableCell>
+                      <a href={newsItem.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        Link
+                      </a>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(newsItem)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(newsItem.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
