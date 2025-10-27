@@ -20,7 +20,7 @@ export default function LaunchBases() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState<Partial<LaunchBase>>({
     name: '',
     location: '',
@@ -76,7 +76,7 @@ export default function LaunchBases() {
     setIsEditing(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (confirm('Are you sure you want to delete this launch base?')) {
       try {
         setError(null);
