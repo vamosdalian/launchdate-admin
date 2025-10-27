@@ -11,29 +11,31 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { Rocket } from '@/types';
+import type { Rocket, Company } from '@/types';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
-import { rocketService } from '@/services';
+import { rocketService, companyService } from '@/services';
 
 export default function Rockets() {
   const [rockets, setRockets] = useState<Rocket[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState<Partial<Rocket>>({
     name: '',
     description: '',
     height: 0,
     diameter: 0,
     mass: 0,
-    company: '',
+    company_id: undefined,
     imageUrl: '',
     active: true,
   });
 
   useEffect(() => {
     fetchRockets();
+    fetchCompanies();
   }, []);
 
   const fetchRockets = async () => {
@@ -49,6 +51,15 @@ export default function Rockets() {
     }
   };
 
+  const fetchCompanies = async () => {
+    try {
+      const data = await companyService.getAll();
+      setCompanies(data);
+    } catch (err) {
+      console.error('Failed to fetch companies:', err);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -58,11 +69,11 @@ export default function Rockets() {
         await rocketService.update(editingId, formData);
       } else {
         // Validate required fields before creating
-        if (!formData.name || !formData.company || !formData.description) {
+        if (!formData.name || !formData.description) {
           setError('Please fill in all required fields');
           return;
         }
-        await rocketService.create(formData as Omit<Rocket, 'id'>);
+        await rocketService.create(formData as Omit<Rocket, 'id' | 'created_at' | 'updated_at'>);
       }
       await fetchRockets();
       resetForm();
@@ -77,7 +88,7 @@ export default function Rockets() {
     setIsEditing(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (confirm('Are you sure you want to delete this rocket?')) {
       try {
         setError(null);
@@ -96,7 +107,7 @@ export default function Rockets() {
       height: 0,
       diameter: 0,
       mass: 0,
-      company: '',
+      company_id: undefined,
       imageUrl: '',
       active: true,
     });
@@ -138,11 +149,18 @@ export default function Rockets() {
                 </div>
                 <div>
                   <label className="text-sm font-medium mb-2 block">Company</label>
-                  <Input
-                    value={formData.company}
-                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                    required
-                  />
+                  <select
+                    value={formData.company_id || ''}
+                    onChange={(e) => setFormData({ ...formData, company_id: e.target.value ? parseInt(e.target.value) : undefined })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="">Select a company (optional)</option>
+                    {companies.map((company) => (
+                      <option key={company.id} value={company.id}>
+                        {company.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               
@@ -161,6 +179,7 @@ export default function Rockets() {
                   <label className="text-sm font-medium mb-2 block">Height (m)</label>
                   <Input
                     type="number"
+                    step="0.1"
                     value={formData.height}
                     onChange={(e) => setFormData({ ...formData, height: parseFloat(e.target.value) || 0 })}
                     required
@@ -170,6 +189,7 @@ export default function Rockets() {
                   <label className="text-sm font-medium mb-2 block">Diameter (m)</label>
                   <Input
                     type="number"
+                    step="0.1"
                     value={formData.diameter}
                     onChange={(e) => setFormData({ ...formData, diameter: parseFloat(e.target.value) || 0 })}
                     required
@@ -179,6 +199,7 @@ export default function Rockets() {
                   <label className="text-sm font-medium mb-2 block">Mass (kg)</label>
                   <Input
                     type="number"
+                    step="0.1"
                     value={formData.mass}
                     onChange={(e) => setFormData({ ...formData, mass: parseFloat(e.target.value) || 0 })}
                     required
@@ -241,7 +262,7 @@ export default function Rockets() {
                 {rockets.map((rocket) => (
                   <TableRow key={rocket.id}>
                     <TableCell className="font-medium">{rocket.name}</TableCell>
-                    <TableCell>{rocket.company}</TableCell>
+                    <TableCell>{rocket.company || 'N/A'}</TableCell>
                     <TableCell>{rocket.height}</TableCell>
                     <TableCell>{rocket.diameter}</TableCell>
                     <TableCell>

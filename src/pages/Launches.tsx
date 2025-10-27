@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -12,7 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { Launch } from '@/types';
-import { Plus, Pencil, Trash2, RefreshCw } from 'lucide-react';
+import { Trash2, RefreshCw } from 'lucide-react';
 import { launchService } from '@/services';
 
 export default function Launches() {
@@ -21,16 +19,6 @@ export default function Launches() {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<Partial<Launch>>({
-    name: '',
-    date: '',
-    rocket: '',
-    launchBase: '',
-    status: 'scheduled',
-    description: '',
-  });
 
   useEffect(() => {
     fetchLaunches();
@@ -54,7 +42,7 @@ export default function Launches() {
       setSyncing(true);
       setError(null);
       setSuccessMessage(null);
-      const result = await launchService.sync();
+      const result = await launchService.sync(50);
       setSuccessMessage(`Successfully synced ${result.count} launches`);
       await fetchLaunches();
     } catch (err) {
@@ -64,35 +52,7 @@ export default function Launches() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      setError(null);
-      if (editingId) {
-        await launchService.update(editingId, formData);
-      } else {
-        // Validate required fields before creating
-        if (!formData.name || !formData.date || !formData.rocket || !formData.launchBase) {
-          setError('Please fill in all required fields');
-          return;
-        }
-        await launchService.create(formData as Omit<Launch, 'id'>);
-      }
-      await fetchLaunches();
-      resetForm();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save launch');
-    }
-  };
-
-  const handleEdit = (launch: Launch) => {
-    setFormData(launch);
-    setEditingId(launch.id);
-    setIsEditing(true);
-  };
-
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (confirm('Are you sure you want to delete this launch?')) {
       try {
         setError(null);
@@ -102,19 +62,6 @@ export default function Launches() {
         setError(err instanceof Error ? err.message : 'Failed to delete launch');
       }
     }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      date: '',
-      rocket: '',
-      launchBase: '',
-      status: 'scheduled',
-      description: '',
-    });
-    setEditingId(null);
-    setIsEditing(false);
   };
 
   const formatDate = (dateString: string) => {
@@ -143,11 +90,7 @@ export default function Launches() {
         <div className="flex gap-2">
           <Button onClick={handleSync} disabled={syncing} variant="outline">
             <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Syncing...' : 'Sync'}
-          </Button>
-          <Button onClick={() => setIsEditing(!isEditing)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Launch
+            {syncing ? 'Syncing...' : 'Sync from API'}
           </Button>
         </div>
       </div>
@@ -164,104 +107,26 @@ export default function Launches() {
         </div>
       )}
 
-      {isEditing && (
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>{editingId ? 'Edit Launch' : 'Add New Launch'}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Name</label>
-                  <Input
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Date</label>
-                  <Input
-                    type="datetime-local"
-                    value={formData.date ? new Date(formData.date).toISOString().slice(0, 16) : ''}
-                    onChange={(e) => setFormData({ ...formData, date: new Date(e.target.value).toISOString() })}
-                    required
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Rocket</label>
-                  <Input
-                    value={formData.rocket}
-                    onChange={(e) => setFormData({ ...formData, rocket: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Launch Base</label>
-                  <Input
-                    value={formData.launchBase}
-                    onChange={(e) => setFormData({ ...formData, launchBase: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium mb-2 block">Status</label>
-                <select
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as Launch['status'] })}
-                  required
-                >
-                  <option value="scheduled">Scheduled</option>
-                  <option value="successful">Successful</option>
-                  <option value="failed">Failed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium mb-2 block">Description</label>
-                <Textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  required
-                  rows={3}
-                />
-              </div>
-              
-              <div className="flex gap-2">
-                <Button type="submit">
-                  {editingId ? 'Update' : 'Create'}
-                </Button>
-                <Button type="button" variant="outline" onClick={resetForm}>
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
       <Card>
+        <CardHeader>
+          <CardTitle>Rocket Launches</CardTitle>
+        </CardHeader>
         <CardContent className="p-0">
           {loading ? (
             <div className="p-8 text-center">Loading launches...</div>
           ) : launches.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">No launches found</div>
+            <div className="p-8 text-center text-muted-foreground">
+              No launches found. Click "Sync from API" to fetch launches.
+            </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Rocket</TableHead>
-                  <TableHead>Launch Base</TableHead>
+                  <TableHead>Provider</TableHead>
+                  <TableHead>Vehicle</TableHead>
+                  <TableHead>Location</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -270,9 +135,12 @@ export default function Launches() {
                 {launches.map((launch) => (
                   <TableRow key={launch.id}>
                     <TableCell className="font-medium">{launch.name}</TableCell>
-                    <TableCell>{formatDate(launch.date)}</TableCell>
-                    <TableCell>{launch.rocket}</TableCell>
-                    <TableCell>{launch.launchBase}</TableCell>
+                    <TableCell>{formatDate(launch.launch_date)}</TableCell>
+                    <TableCell>{launch.provider?.name || 'N/A'}</TableCell>
+                    <TableCell>{launch.vehicle?.name || 'N/A'}</TableCell>
+                    <TableCell>
+                      {launch.pad?.location?.name || launch.pad?.name || 'N/A'}
+                    </TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(launch.status)}`}>
                         {launch.status}
@@ -282,14 +150,8 @@ export default function Launches() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleEdit(launch)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
                         onClick={() => handleDelete(launch.id)}
+                        title="Delete launch"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
